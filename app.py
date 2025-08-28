@@ -2,21 +2,21 @@ import streamlit as st
 import os
 from PIL import Image
 from dotenv import load_dotenv
-
-# Import functions from your new modules
 from llm_service import gemini_inference, ollama_inference
 from pdf_generator import create_pdf_report
 from utils import image_to_base64
 from styles import custom_styles
 
-# Load environment variables
 load_dotenv()
 
 def main():
-    # Apply custom CSS
+    st.set_page_config(
+    page_title="KPI Dashboard Analyzer",
+    layout="wide"
+    )
+
     st.markdown(custom_styles(), unsafe_allow_html=True)
     
-    # Custom Header
     st.markdown("""
     <div class="main-header">
         <h1>📊 KPI Dashboard Analyzer</h1>
@@ -25,7 +25,6 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
-    # Initialize session state for analysis results
     if 'analysis_result' not in st.session_state:
         st.session_state.analysis_result = None
         st.session_state.footer_text = "Choose a model to start"

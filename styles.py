@@ -63,6 +63,7 @@ def custom_styles():
         overflow: hidden;
     }
     
+    /* Add subtle pattern overlay mimicking logo's sophistication */
     .main-header::before {
         content: '';
         position: absolute;
@@ -236,26 +237,10 @@ def custom_styles():
         font-family: 'Inter', sans-serif !important;
         font-size: 16px !important;
         line-height: 1.6 !important;
-        color: white !important;
+        color: #ffffff !important;
         transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
         resize: vertical !important;
         padding: 1rem !important;
-    }
-    
-    .stTextArea > div > div > textarea:hover {
-        border-color: var(--iscore-purple-primary) !important;
-        background: linear-gradient(145deg, var(--iscore-teal-alpha-10), var(--iscore-purple-alpha-05)) !important;
-        transform: translateY(-1px) !important;
-        box-shadow: 0 4px 15px var(--iscore-teal-alpha-20) !important;
-    }
-    
-    .stTextArea > div > div > textarea:focus {
-        border-color: var(--iscore-purple-primary) !important;
-        box-shadow: 
-            0 0 0 3px var(--iscore-purple-alpha-20),
-            0 8px 25px var(--iscore-teal-alpha-20) !important;
-        background: linear-gradient(145deg, var(--iscore-teal-alpha-10), var(--iscore-purple-alpha-05))s !important;
-        transform: scale(1.01) !important;
     }
     
     .stTextArea > div > div > textarea::placeholder {
@@ -334,9 +319,53 @@ def custom_styles():
         margin-top: -2px !important;
     }
     
-    /* Alert components styled with I-Score branding */
-    .stInfo {
-        background: var(--iscore-gradient-subtle) !important;
+    /* FIXED Alert components styled with I-Score branding */
+    
+    /* Info alerts (st.info) */
+    .stAlert[data-baseweb="notification"]:has([data-testid="stNotificationContentInfo"]) {
+        background: linear-gradient(145deg, var(--iscore-teal-alpha-15), var(--iscore-teal-alpha-05)) !important;
+        border-left: 6px solid var(--iscore-teal-primary) !important;
+        color: var(--iscore-dark-charcoal) !important;
+    }
+    
+    /* Success alerts (st.success) */
+    .stAlert[data-baseweb="notification"]:has([data-testid="stNotificationContentSuccess"]) {
+        background: linear-gradient(145deg, var(--iscore-teal-alpha-20), var(--iscore-teal-alpha-10)) !important;
+        border-left: 6px solid var(--iscore-teal-primary) !important;
+        color: var(--iscore-dark-charcoal) !important;
+    }
+    
+    /* Error alerts (st.error) */
+    .stAlert[data-baseweb="notification"]:has([data-testid="stNotificationContentError"]) {
+        background: linear-gradient(145deg, var(--iscore-purple-alpha-15), var(--iscore-purple-alpha-05)) !important;
+        border-left: 6px solid var(--iscore-purple-primary) !important;
+        color: var(--iscore-dark-charcoal) !important;
+    }
+    
+    /* Warning alerts (st.warning) */
+    .stAlert[data-baseweb="notification"]:has([data-testid="stNotificationContentWarning"]) {
+        background: linear-gradient(145deg, var(--iscore-teal-alpha-15), var(--iscore-teal-alpha-05)) !important;
+        border-left: 6px solid var(--iscore-teal-dark) !important;
+        color: var(--iscore-dark-charcoal) !important;
+    }
+    
+    /* Ensure all alert text is visible with proper color - Multiple fallback approaches */
+    .stAlert * {
+        color: var(--iscore-dark-charcoal) !important;
+    }
+    
+    .stAlert div,
+    .stAlert p,
+    .stAlert span {
+        color: var(--iscore-dark-charcoal) !important;
+    }
+    
+    /* Legacy alert class support for older Streamlit versions */
+    .stInfo,
+    .stSuccess, 
+    .stError,
+    .stWarning {
+        background: linear-gradient(145deg, var(--iscore-teal-alpha-15), var(--iscore-teal-alpha-05)) !important;
         border: 2px solid var(--iscore-teal-primary) !important;
         border-left: 6px solid var(--iscore-teal-primary) !important;
         border-radius: 12px !important;
@@ -348,35 +377,35 @@ def custom_styles():
     
     .stSuccess {
         background: linear-gradient(145deg, var(--iscore-teal-alpha-20), var(--iscore-teal-alpha-10)) !important;
-        border: 2px solid var(--iscore-teal-primary) !important;
-        border-left: 6px solid var(--iscore-teal-primary) !important;
-        border-radius: 12px !important;
-        color: var(--iscore-dark-charcoal) !important;
-        font-family: 'Inter', sans-serif !important;
-        box-shadow: 0 4px 15px var(--iscore-teal-alpha-20) !important;
-        padding: 1.5rem !important;
     }
     
     .stError {
-        background: linear-gradient(145deg, var(--iscore-purple-alpha-10), var(--iscore-purple-alpha-10)) !important;
-        border: 2px solid var(--iscore-purple-primary) !important;
-        border-left: 6px solid var(--iscore-purple-primary) !important;
-        border-radius: 12px !important;
-        color: var(--iscore-dark-charcoal) !important;
-        font-family: 'Inter', sans-serif !important;
+        background: linear-gradient(145deg, var(--iscore-purple-alpha-15), var(--iscore-purple-alpha-05)) !important;
+        border-color: var(--iscore-purple-primary) !important;
+        border-left-color: var(--iscore-purple-primary) !important;
         box-shadow: 0 4px 15px var(--iscore-purple-alpha-20) !important;
-        padding: 1.5rem !important;
     }
     
     .stWarning {
-        background: linear-gradient(145deg, var(--iscore-teal-alpha-10), var(--iscore-teal-alpha-10)) !important;
-        border: 2px solid var(--iscore-teal-dark) !important;
-        border-left: 6px solid var(--iscore-teal-dark) !important;
-        border-radius: 12px !important;
+        border-color: var(--iscore-teal-dark) !important;
+        border-left-color: var(--iscore-teal-dark) !important;
+    }
+    
+    /* Additional fallback selectors for alert text visibility */
+    [data-baseweb="notification"] {
         color: var(--iscore-dark-charcoal) !important;
-        font-family: 'Inter', sans-serif !important;
-        box-shadow: 0 4px 15px var(--iscore-teal-alpha-20) !important;
-        padding: 1.5rem !important;
+    }
+    
+    [data-baseweb="notification"] * {
+        color: var(--iscore-dark-charcoal) !important;
+    }
+    
+    div[data-testid*="stNotification"] {
+        color: var(--iscore-dark-charcoal) !important;
+    }
+    
+    div[data-testid*="stNotification"] * {
+        color: var(--iscore-dark-charcoal) !important;
     }
     
     /* Expander styling with I-Score consistency */
@@ -450,40 +479,51 @@ def custom_styles():
     
     /* Image display styling */
     .stImage > div {
-        border-radius: 12px !important;
+        border-radius: 16px !important;
         overflow: hidden !important;
-        box-shadow: 0 4px 15px rgba(69, 188, 195, 0.2) !important;
-        border: 2px solid rgba(69, 188, 195, 0.3) !important;
+        box-shadow: 
+            0 8px 30px var(--iscore-teal-alpha-20),
+            0 4px 15px var(--iscore-purple-alpha-10) !important;
+        border: 3px solid var(--iscore-teal-alpha-30) !important;
+        transition: transform 0.3s ease !important;
+    }
+    
+    .stImage > div:hover {
+        transform: scale(1.02) !important;
     }
     
     /* Spinner customization */
     .stSpinner > div {
-        border-top-color: #45BCC3 !important;
-        border-right-color: #4F3C8F !important;
+        border-top-color: var(--iscore-teal-primary) !important;
+        border-right-color: var(--iscore-purple-primary) !important;
+        border-bottom-color: var(--iscore-teal-light) !important;
+        border-left-color: var(--iscore-purple-light) !important;
     }
     
     /* Progress bar styling */
     .stProgress > div > div > div {
-        background: linear-gradient(90deg, #45BCC3 0%, #4F3C8F 100%) !important;
+        background: var(--iscore-gradient-primary) !important;
+        border-radius: 10px !important;
     }
     
     /* Selectbox styling */
     .stSelectbox > div > div {
-        border: 2px solid #45BCC3 !important;
+        border: 2px solid var(--iscore-teal-primary) !important;
         border-radius: 10px !important;
-        color: black;
-        background: linear-gradient(145deg, rgba(69, 188, 195, 0.02), rgba(79, 60, 143, 0.02)) !important;
+        color: var(--iscore-dark-charcoal) !important;
+        background: linear-gradient(145deg, var(--iscore-teal-alpha-05), var(--iscore-purple-alpha-05)) !important;
     }
     
     .stSelectbox > div > div:focus-within {
-        border-color: #4F3C8F !important;
-        box-shadow: 0 0 0 2px rgba(79, 60, 143, 0.2) !important;
+        border-color: var(--iscore-purple-primary) !important;
+        box-shadow: 0 0 0 2px var(--iscore-purple-alpha-20) !important;
     }
     
     /* Markdown content styling */
     .stMarkdown {
-        color: #4B4947 !important;
+        color: var(--iscore-dark-charcoal) !important;
         font-family: 'Inter', sans-serif !important;
+        line-height: 1.6 !important;
     }
     
     /* Columns styling */
@@ -537,13 +577,6 @@ def custom_styles():
         background: var(--iscore-gradient-light);
     }
     
-    /* Additional polish for modern web aesthetics */
-    .stMarkdown {
-        color: var(--iscore-dark-charcoal) !important;
-        font-family: 'Inter', sans-serif !important;
-        line-height: 1.6 !important;
-    }
-    
     /* Override any remaining default red/orange hover effects */
     input:hover, textarea:hover, select:hover {
         border-color: var(--iscore-purple-primary) !important;
@@ -554,46 +587,6 @@ def custom_styles():
         border-color: var(--iscore-purple-primary) !important;
         outline: none !important;
         box-shadow: 0 0 0 2px var(--iscore-purple-alpha-20) !important;
-    }
-    
-    /* File uploader drag and drop hover states */
-    .stFileUploader [data-testid="stFileUploaderDropzone"]:hover {
-        border-color: var(--iscore-purple-primary) !important;
-        background: var(--iscore-gradient-subtle) !important;
-    }
-    
-    /* General hover states for interactive elements */
-    [role="button"]:hover {
-        background-color: var(--iscore-teal-alpha-10) !important;
-    }
-    
-    /* Enhanced image styling */
-    .stImage > div {
-        border-radius: 16px !important;
-        overflow: hidden !important;
-        box-shadow: 
-            0 8px 30px var(--iscore-teal-alpha-20),
-            0 4px 15px var(--iscore-purple-alpha-10) !important;
-        border: 3px solid var(--iscore-teal-alpha-30) !important;
-        transition: transform 0.3s ease !important;
-    }
-    
-    .stImage > div:hover {
-        transform: scale(1.02) !important;
-    }
-    
-    /* Spinner with I-Score branding */
-    .stSpinner > div {
-        border-top-color: var(--iscore-teal-primary) !important;
-        border-right-color: var(--iscore-purple-primary) !important;
-        border-bottom-color: var(--iscore-teal-light) !important;
-        border-left-color: var(--iscore-purple-light) !important;
-    }
-    
-    /* Progress bar styling */
-    .stProgress > div > div > div {
-        background: var(--iscore-gradient-primary) !important;
-        border-radius: 10px !important;
     }
     </style>
     """
