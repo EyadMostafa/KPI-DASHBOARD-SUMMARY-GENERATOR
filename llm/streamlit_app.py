@@ -1,24 +1,19 @@
 import streamlit as st
+import ollama
 import base64
 import tempfile
 import os
 from PIL import Image
 from io import BytesIO
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageTemplate, Frame, BaseDocTemplate
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from dotenv import load_dotenv
-import google.generativeai as genai
-import re
-from reportlab.lib.colors import HexColor
-
-# Load environment variables
-load_dotenv()
 
 def image_to_base64(image_file):
     """Converts an uploaded image file to a base64 encoded string."""
     try:
+        # Convert PIL Image to base64
         if hasattr(image_file, 'mode'):
             img = image_file
         else:
@@ -34,56 +29,62 @@ def image_to_base64(image_file):
         st.error(f"Error processing image: {e}")
         return None
 
-def gemini_inference(instruction, images_pil):
+def ollama_inference(model_name, instruction, images_base64):
     """
-    Performs inference using a Gemini Vision model.
+    Performs inference using a multimodal Ollama model.
     """
     try:
-        # Set up your API key
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            st.error("Gemini API key not found. Please set it in your environment or Streamlit secrets.")
-            return None
-
-        genai.configure(api_key=api_key)
-        
-        model = genai.GenerativeModel('gemini-1.5-flash-latest')
-
-        prompt_parts = [instruction]
-        if images_pil:
-            for img in images_pil:
-                prompt_parts.append(img)
-
-        response = model.generate_content(prompt_parts)
-        return response.text
+        response = ollama.chat(
+            model=model_name,
+            messages=[
+                {
+                    'role': 'user',
+                    'content': instruction,
+                    'images': images_base64,
+                }
+            ]
+        )
+        return response['message']['content']
     except Exception as e:
-        st.error(f"Gemini API Error: {e}")
-        return None
+        return f"An error occurred during inference: {e}"
+
+def check_model_availability(model_name):
+    """Check if the Ollama model is available."""
+    try:
+        ollama.show(model_name)
+        return True
+    except Exception:
+        return False
 
 def create_pdf_report(dashboard_objective, analysis_result, filename):
     """Create a PDF report with I-Score branding and professional formatting."""
+    from reportlab.lib.colors import HexColor
+    from reportlab.platypus import PageTemplate, Frame, BaseDocTemplate
+    from reportlab.lib.pagesizes import letter
     
     buffer = BytesIO()
     
+    # Custom page template with logo
     class LogoPageTemplate(PageTemplate):
         def __init__(self, id, frames, pagesize=letter):
             PageTemplate.__init__(self, id, frames, pagesize=pagesize)
             
         def beforeDrawPage(self, canvas, doc):
+            """Add logo to every page"""
             try:
                 # Professional header with I-Score branding
                 # Logo area background
-                canvas.setFillColor(HexColor('#F8F9FA'))
+                canvas.setFillColor(HexColor('#F8F9FA'))  # Light background
                 canvas.rect(40, letter[1] - 65, letter[0] - 80, 55, fill=1, stroke=0)
                 
                 # I-Score logo text with professional styling
-                canvas.setFillColor(HexColor('#4F3C8F'))
+                canvas.setFillColor(HexColor('#4F3C8F'))  # I-Score purple
                 canvas.setFont("Helvetica-Bold", 18)
                 canvas.drawString(50, letter[1] - 30, "I-SCORE")
                 
                 # Subtitle
                 canvas.setFont("Helvetica", 12)
-                canvas.setFillColor(HexColor('#45BCC3'))
+                canvas.setFillColor(HexColor('#45BCC3'))  # I-Score teal
                 canvas.drawString(50, letter[1] - 48, "KPI Dashboard Analysis Report")
                 
                 # Add I-Score brand elements - decorative shapes
@@ -121,7 +122,7 @@ def create_pdf_report(dashboard_objective, analysis_result, filename):
     doc = BaseDocTemplate(
         buffer,
         pagesize=letter,
-        rightMargin=72,
+        rightMargin=72,  # 1 inch
         leftMargin=72,
         topMargin=72,
         bottomMargin=72
@@ -129,7 +130,7 @@ def create_pdf_report(dashboard_objective, analysis_result, filename):
     
     # Define frame for content (below the logo area)
     frame = Frame(
-        72, 72, letter[0] - 144, letter[1] - 144,
+        72, 72, letter[0] - 144, letter[1] - 144,  # Adjusted for 1 inch margins
         leftPadding=0, bottomPadding=0, rightPadding=0, topPadding=0
     )
     
@@ -139,11 +140,13 @@ def create_pdf_report(dashboard_objective, analysis_result, filename):
     styles = getSampleStyleSheet()
     story = []
     
+    # I-Score brand colors
     iscore_teal = HexColor('#45BCC3')
     iscore_purple = HexColor('#4F3C8F')
     iscore_dark_charcoal = HexColor('#4B4947')
     iscore_gray = HexColor('#495057')
     
+    # Custom styles as per specifications
     title_style = ParagraphStyle(
         'IScorerTitle',
         parent=styles['Title'],
@@ -152,7 +155,7 @@ def create_pdf_report(dashboard_objective, analysis_result, filename):
         textColor=iscore_purple,
         spaceAfter=24,
         spaceBefore=0,
-        alignment=1,
+        alignment=1,  # Centered
         letterSpacing=0.3,
         lineHeight=20
     )
@@ -166,7 +169,7 @@ def create_pdf_report(dashboard_objective, analysis_result, filename):
         spaceBefore=20,
         spaceAfter=12,
         leftIndent=0,
-        alignment=0
+        alignment=0  # Left-aligned
     )
     
     sub_heading_style = ParagraphStyle(
@@ -191,7 +194,7 @@ def create_pdf_report(dashboard_objective, analysis_result, filename):
         spaceAfter=6,
         leftIndent=12,
         lineHeight=16,
-        alignment=4
+        alignment=4  # Justified
     )
     
     bullet_style = ParagraphStyle(
@@ -232,7 +235,7 @@ def create_pdf_report(dashboard_objective, analysis_result, filename):
         fontSize=9,
         fontName='Helvetica',
         textColor=iscore_gray,
-        alignment=1,
+        alignment=1,  # Centered
         spaceBefore=16,
         spaceAfter=4,
         lineHeight=12
@@ -251,7 +254,9 @@ def create_pdf_report(dashboard_objective, analysis_result, filename):
     story.append(Paragraph("2. AI Analysis Results", section_heading_style))
     story.append(Spacer(1, 0.1 * inch))
     
+    # Process analysis results with refined parsing
     def clean_markdown(text):
+        import re
         text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
         text = re.sub(r'\*(.*?)\*', r'\1', text)
         text = re.sub(r'^#+\s*', '', text, flags=re.MULTILINE)
@@ -265,10 +270,12 @@ def create_pdf_report(dashboard_objective, analysis_result, filename):
             story.append(Spacer(1, 6))
             continue
         
+        # Main sub-sections (a. Overall Summary)
         if line.startswith(tuple(f'{chr(97+i)}. ' for i in range(26))):
             clean_line = clean_markdown(line)
             story.append(Paragraph(clean_line, sub_heading_style))
         
+        # Numbered list items (1. Total Employees:)
         elif line.startswith(tuple(f'{i}. ' for i in range(1, 10))):
             clean_line = clean_markdown(line)
             if ':' in clean_line:
@@ -280,10 +287,12 @@ def create_pdf_report(dashboard_objective, analysis_result, filename):
             else:
                 story.append(Paragraph(clean_line, body_style))
         
+        # Bullet points
         elif line.startswith(('*', '-', '•')):
             clean_line = clean_markdown(line.lstrip('*-• ').strip())
             story.append(Paragraph(f'• {clean_line}', bullet_style))
         
+        # Regular paragraphs
         else:
             clean_line = clean_markdown(line)
             if clean_line:
@@ -291,18 +300,20 @@ def create_pdf_report(dashboard_objective, analysis_result, filename):
     
     # Footer
     story.append(Spacer(1, 0.3 * inch))
-    story.append(Paragraph("Generated by I-Score KPI Dashboard Analyzer | Powered by Gemini Pro Vision Model", footer_style))
+    story.append(Paragraph("Generated by I-Score KPI Dashboard Analyzer | Powered by Ollama Qwen 2.5 Vision Model", footer_style))
     
     doc.build(story)
     buffer.seek(0)
     return buffer
 
 def main():
+    # Read the SVG logo content
     try:
         with open("JPG to SVG Conversion.svg", "r", encoding="utf-8") as f:
             svg_logo = f.read()
     except FileNotFoundError:
         svg_logo = ""
+        print("Warning: SVG logo file not found")
     
     st.set_page_config(
         page_title="KPI Dashboard Analyzer",
@@ -919,16 +930,14 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
-    # Initialize session state for storing analysis results
-    if 'analysis_result' not in st.session_state:
-        st.session_state.analysis_result = None
-    if 'analysis_objective' not in st.session_state:
-        st.session_state.analysis_objective = None
-    if 'analysis_image' not in st.session_state:
-        st.session_state.analysis_image = None
-    if 'analysis_filename' not in st.session_state:
-        st.session_state.analysis_filename = None
-
+    # Fixed model configuration
+    model_name = "qwen2.5vl:7b"
+    
+    # Check model availability
+    if not check_model_availability(model_name):
+        st.error(f"❌ Model '{model_name}' not found. Please pull it using: `ollama pull {model_name}`")
+        st.stop()
+    
     # Main content area
     col1, col2 = st.columns([1, 1])
     
@@ -970,18 +979,29 @@ def main():
             To monitor key financial metrics including revenue, expenses, and profitability to ensure fiscal health.
             """)
     
+    # Initialize session state for storing analysis results
+    if 'analysis_result' not in st.session_state:
+        st.session_state.analysis_result = None
+    if 'analysis_objective' not in st.session_state:
+        st.session_state.analysis_objective = None
+    if 'analysis_image' not in st.session_state:
+        st.session_state.analysis_image = None
+    if 'analysis_filename' not in st.session_state:
+        st.session_state.analysis_filename = None
+
     # Analysis section
     st.header("🔍 Analysis")
     
+    # Show analyze button if image is uploaded and objective has any text
     if uploaded_file is not None and len(dashboard_objective.strip()) > 0:
         if st.button("🚀 Analyze Dashboard", type="primary", use_container_width=True):
             with st.spinner("Analyzing dashboard... This may take a few moments."):
+                # Convert image to base64
+                image_b64 = image_to_base64(image)
                 
-                # Use PIL to handle the image
-                uploaded_image_pil = Image.open(uploaded_file)
-
-                # Create the prompt
-                prompt_template = """
+                if image_b64:
+                    # Create the prompt
+                    prompt_template = """
 As an expert data analyst, your task is to generate a concise summary of the provided KPI dashboard. The primary business objective for this dashboard is:
 "{objective}"
 
@@ -989,35 +1009,34 @@ Based on the dashboard image and the stated objective, provide a summary that in
 
 1.  **Overall Summary:** A brief, high-level overview of the dashboard's current status in relation to the business objective.
 2.  **Key KPI Analysis:**
-    * Identify the main KPIs presented (e.g., total employees, distribution by department, gender ratio).
-    * For each KPI, describe its current value and explain its significance in the context of the objective.
-    * Highlight any notable trends or comparisons shown in the visualizations.
+    *   Identify the main KPIs presented (e.g., total employees, distribution by department, gender ratio).
+    *   For each KPI, describe its current value and explain its significance in the context of the objective.
+    *   Highlight any notable trends or comparisons shown in the visualizations.
 3.  **Core Insights and Trends:**
-    * What are the most critical insights that can be drawn from the data?
-    * Are there any significant patterns, anomalies, or correlations that stand out? (e.g., one department being significantly larger than others).
+    *   What are the most critical insights that can be drawn from the data?
+    *   Are there any significant patterns, anomalies, or correlations that stand out? (e.g., one department being significantly larger than others).
 4.  **Strategic Recommendations:**
-    * Based on your analysis, provide 1-2 actionable recommendations that would help the business achieve its workforce planning and talent management goals.
+    *   Based on your analysis, provide 1-2 actionable recommendations that would help the business achieve its workforce planning and talent management goals.
 
 Please ensure your summary is clear, data-driven, and directly tied to the provided objective to facilitate informed decision-making.
 """
-                
-                instruction = prompt_template.format(objective=dashboard_objective)
-                
-                # Perform inference
-                result = gemini_inference(instruction, [uploaded_image_pil])
-                
-                if result:
+                    
+                    instruction = prompt_template.format(objective=dashboard_objective)
+                    
+                    # Perform inference
+                    result = ollama_inference(model_name, instruction, [image_b64])
+                    
                     # Store results in session state
                     st.session_state.analysis_result = result
                     st.session_state.analysis_objective = dashboard_objective
-                    st.session_state.analysis_image = uploaded_image_pil
+                    st.session_state.analysis_image = image
                     st.session_state.analysis_filename = uploaded_file.name
                     
+                    # Display success message
                     st.success("✅ Analysis Complete!")
-                    st.rerun()
                 else:
                     st.error("Failed to process the uploaded image. Please try again.")
-
+    
     # Display analysis results if they exist in session state
     if st.session_state.analysis_result is not None:
         # Create tabs for different views
@@ -1057,7 +1076,7 @@ Please ensure your summary is clear, data-driven, and directly tied to the provi
     # Footer with consistent styling
     st.markdown("""
     <div class="footer-text">
-        <strong>Powered by Gemini Pro Vision Model</strong> | Built with Streamlit
+        <strong>Powered by Ollama Qwen 2.5 Vision Model</strong> | Built with Streamlit
     </div>
     """, unsafe_allow_html=True)
 
