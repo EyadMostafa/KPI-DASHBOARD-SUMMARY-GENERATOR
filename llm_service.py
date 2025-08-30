@@ -11,7 +11,7 @@ def gemini_inference(instruction, images_pil):
     try:
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
-            st.error("Gemini API key not found. Please set it in your environment or Streamlit secrets.")
+            st.error("Gemini API key not found. Please set it in your environment.")
             return None
 
         genai.configure(api_key=api_key)
