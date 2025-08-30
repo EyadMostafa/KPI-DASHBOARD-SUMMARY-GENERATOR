@@ -6,7 +6,7 @@ import tempfile
 
 def gemini_inference(instruction, images_pil):
     """
-    Performs inference using a Gemini Vision model via API.
+    Performs analysis inference using a Gemini Vision model via API.
     """
     try:
         api_key = os.getenv("GEMINI_API_KEY")
@@ -30,7 +30,7 @@ def gemini_inference(instruction, images_pil):
 
 def ollama_inference(model_name, instruction, images_pil):
     """
-    Performs inference using a local Ollama model.
+    Performs analysis inference using a local Ollama model.
     """
     try:
         messages = [
@@ -60,4 +60,38 @@ def ollama_inference(model_name, instruction, images_pil):
     except Exception as e:
         st.error(f"Ollama Error: {e}")
         st.warning("Please ensure Ollama is running and the model is pulled.")
+        return None
+    
+def gemini_chat_inference(chat_prompt):
+    """
+    Text-only chat inference using Gemini model.
+    """
+    try:
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            st.error("Gemini API key not found.")
+            return None
+
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        
+        response = model.generate_content(chat_prompt)
+        return response.text
+    except Exception as e:
+        st.error(f"Gemini Chat Error: {e}")
+        return None
+
+def ollama_chat_inference(model_name, chat_prompt):
+    """
+    Text-only chat inference using Ollama model.
+    """
+    try:
+        client = ollama.Client(host=os.getenv("OLLAMA_API_URL", "http://localhost:11434"))
+        
+        messages = [{"role": "user", "content": chat_prompt}]
+        response = client.chat(model=model_name, messages=messages)
+        
+        return response['message']['content']
+    except Exception as e:
+        st.error(f"Ollama Chat Error: {e}")
         return None
