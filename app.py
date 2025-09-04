@@ -4,11 +4,12 @@ from PIL import Image
 from dotenv import load_dotenv
 from llm_service import gemini_inference, ollama_inference, gemini_chat_inference, ollama_chat_inference
 from pdf_generator import create_pdf_report
-from utils import image_to_base64
 from styles import custom_styles
-from context_manager import context_manager
+from context_manager import DashboardContextManager
 
 load_dotenv()
+
+context_manager = DashboardContextManager()
 
 @st.cache_data
 def generate_pdf_report(objective, analysis, filename):
@@ -30,174 +31,176 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
-    # Initialize legacy state for backward compatibility
     if 'analysis_result' not in st.session_state:
         st.session_state.analysis_result = None
-        st.session_state.footer_text = "Choose a model to start"
+    if 'comparison_analysis' not in st.session_state:
+        st.session_state.comparison_analysis = None
         
-    col1, col2 = st.columns([1, 1])
+    tab1, tab2 = st.tabs(["📈 Single Dashboard Analysis", "⚖️ Dashboard Comparison Tool"])
     
-    with col1:
-        st.header("📤 Upload Dashboard")
-        uploaded_file = st.file_uploader(
-            "Choose a KPI dashboard image",
-            type=['png', 'jpg', 'jpeg'],
-            help="Upload your KPI dashboard image (PNG, JPG, or JPEG format)"
-        )
+    with tab1:
+        st.header("Analyze a Single Dashboard")
+        model_choice = st.radio("Choose the model for analysis", ("Gemini (Online)", "Ollama (Local)"), horizontal=True, key="single_model_choice")
+
+        uploaded_file = st.file_uploader("Upload an Image", type=["png", "jpg", "jpeg"])
+        objective = st.text_area("Provide a business objective for the analysis", height=100)
         
-        if uploaded_file is not None:
-            image = Image.open(uploaded_file)
-            st.image(image, caption="Uploaded Dashboard", use_container_width=True)
-            st.info(f"**File:** {uploaded_file.name}\n**Size:** {image.size}\n**Mode:** {image.mode}")
-            
-    with col2:
-        st.header("🎯 Dashboard Objective")
-        dashboard_objective = st.text_area(
-            "Enter the business objective for this dashboard",
-            placeholder="e.g., To monitor employee distribution and performance metrics to support strategic workforce planning.",
-            height=150
-        )
         
-        model_choice = st.selectbox(
-            "Choose a Model Source",
-            ("API Model (Gemini)", "Local Model (Ollama)")
-        )
-        
-        with st.expander("💡 Example Objectives"):
-            st.markdown("""
-            - **HR:** To monitor employee distribution to support workforce planning.
-            - **Sales:** To track revenue, customer acquisition, and sales team productivity.
-            - **Finance:** To monitor key financial metrics and ensure fiscal health.
-            """)
-    
-    st.header("🔍 Analysis")
-    
-    if uploaded_file is not None and len(dashboard_objective.strip()) > 0:
-        if st.button("🚀 Analyze Dashboard", type="primary", use_container_width=True):
-            with st.spinner("Analyzing dashboard... This may take a few moments."):
-                uploaded_image_pil = Image.open(uploaded_file)
-                
-                if model_choice == "API Model (Gemini)":
-                    analysis_result = gemini_inference(dashboard_objective, [uploaded_image_pil])
-                    model_type = "gemini"
-                    st.session_state.footer_text = "Powered by Gemini Pro Vision Model"
-                else: # Local Model (Ollama)
-                    ollama_model_name = os.getenv("OLLAMA_MODEL_NAME", "qwen2.5vl:7b")
-                    analysis_result = ollama_inference(ollama_model_name, dashboard_objective, [uploaded_image_pil])
-                    model_type = "ollama"
-                    st.session_state.footer_text = f"Powered by Local Model ({ollama_model_name})"
-                
-                if analysis_result:
-                    # Create session using context manager
-                    session_created = context_manager.create_session(
-                        image=uploaded_image_pil,
-                        filename=uploaded_file.name,
-                        objective=dashboard_objective,
-                        analysis=analysis_result,
-                        model_used=model_type
-                    )
+        if st.button("Generate Summary"):
+            if uploaded_file and objective:
+                with st.spinner('Analyzing the dashboard...'):
+                    image = Image.open(uploaded_file)
                     
-                    if session_created:
-                        st.success("✅ Analysis Complete! You can now chat about this dashboard.")
+                    if model_choice == "Gemini (Online)":
+                        analysis_result = gemini_inference(objective, [image])
+                        model_used = "gemini"
+                    else:
+                        analysis_result = ollama_inference(os.getenv("OLLAMA_MODEL_NAME"), objective, [image])
+                        model_used = "ollama"
+                    
+                    if analysis_result:
+                        context_manager.create_session('single_dashboard', image, uploaded_file.name, objective, analysis_result, model_used)
+                        st.session_state.comparison_analysis = None
+                        st.session_state.analysis_result = analysis_result
                         st.rerun()
                     else:
-                        st.error("Failed to create analysis session.")
-                else:
-                    st.error("Failed to process the request. Please check your API key or local model setup.")
+                        st.error("Failed to get analysis from the model.")
+            else:
+                st.error("Please upload an image and provide a business objective.")
+
+    with tab2:
+        st.header("Compare Two Dashboards")
+        
+        comparison_model_choice = st.radio("Choose the model for comparison", ("Gemini (Online)", "Ollama (Local)"), horizontal=True, key="comparison_model_choice")
+        
+        col1, col2 = st.columns([1, 1])
+        
+        with col1:
+            st.markdown("<h4><i class='bi bi-speedometer'></i> Dashboard 1</h4>", unsafe_allow_html=True)
+            uploaded_file1 = st.file_uploader("Upload Image", type=["png", "jpg", "jpeg"], key="dashboard1_uploader")
+            objective1 = st.text_area("Dashboard 1 Objective", height=100, key="objective1")
+            
+        with col2:
+            st.markdown("<h4><i class='bi bi-speedometer2'></i> Dashboard 2</h4>", unsafe_allow_html=True)
+            uploaded_file2 = st.file_uploader("Upload Image", type=["png", "jpg", "jpeg"], key="dashboard2_uploader")
+            objective2 = st.text_area("Dashboard 2 Objective", height=100, key="objective2")
+
+        if uploaded_file1 and objective1 and uploaded_file2 and objective2:
+            if st.button("Compare Dashboards"):
+                with st.spinner("Analyzing and Comparing Dashboards..."):
+                    image1 = Image.open(uploaded_file1)
+                    image2 = Image.open(uploaded_file2)
+                    
+                    if comparison_model_choice == "Gemini (Online)":
+                        analysis1 = gemini_inference(objective1, [image1]) 
+                        analysis2 = gemini_inference(objective2, [image2])
+                        model_used = "gemini"
+                    else:
+                        analysis1 = ollama_inference(os.getenv("OLLAMA_MODEL_NAME"), objective1, [image1])
+                        analysis2 = ollama_inference(os.getenv("OLLAMA_MODEL_NAME"), objective2, [image2])
+                        model_used = "ollama"
+                    
+                    context_manager.create_session('dashboard_one', image1, uploaded_file1.name, objective1, analysis1, model_used)
+                    context_manager.create_session('dashboard_two', image2, uploaded_file2.name, objective2, analysis2, model_used)
+
+                    comparison_prompt = context_manager.get_comparison_context()
+
+                    if comparison_model_choice == "Gemini (Online)":
+                        comparison_result = gemini_chat_inference(comparison_prompt)
+                    else:
+                        comparison_result = ollama_chat_inference(os.getenv("OLLAMA_MODEL_NAME"), comparison_prompt)
+                    
+                    st.session_state.comparison_analysis = comparison_result
+                    st.rerun()
+
+    st.markdown("---")
     
-    if context_manager.has_active_session():
+    if st.session_state.get('comparison_analysis'):
+        st.subheader("Dashboard Comparison Analysis")
+        st.write(st.session_state.comparison_analysis)
+        
+        pdf_bytes = generate_pdf_report(
+            "Dashboard Comparison Analysis", 
+            st.session_state.comparison_analysis, 
+            "dashboard_comparison_report.pdf"
+        )
+        st.download_button(
+            label="Download Comparison PDF Report",
+            data=pdf_bytes,
+            file_name="dashboard_comparison_report.pdf",
+            mime="application/pdf"
+        )
+        
+    elif context_manager.has_active_session():
+        st.subheader("Dashboard Analysis")
         session_data = context_manager.get_session_data()
         
-        tab1, tab2, tab3, tab4 = st.tabs(["📋 Analysis Results", "🎯 Objective", "🖼️ Dashboard", "💬 Chat"])
-        
-        with tab1:
-            st.markdown("### AI Analysis Results")
-            st.markdown(session_data["analysis"])
-        
-        if st.download_button(
-            label="📥 Download PDF Report",
-            data=generate_pdf_report(session_data["objective"], session_data["analysis"], session_data["filename"]),
-            file_name=f"dashboard_analysis_{session_data['filename'].split('.')[0]}.pdf",
-            mime="application/pdf",
-            key="download_pdf"
-        ):
-            st.success("PDF downloaded!")
-        
-        with tab2:
-            st.markdown("### Dashboard Objective")
-            st.info(session_data["objective"])
-        
-        with tab3:
-            st.markdown("### Dashboard Image")
-            st.image(session_data["image_pil"], caption="Analyzed Dashboard", use_container_width=True)
-        
-        with tab4:
-            render_chat_interface()
-    
-    elif uploaded_file is None:
-        st.info("👆 Please upload a dashboard image to get started.")
-    elif not dashboard_objective.strip():
-        st.info("📝 Please enter the dashboard objective to proceed with analysis.")
-    
-    st.markdown(f"""
-    <div class="footer-text">
-        <strong>{st.session_state.footer_text}</strong> | Built with Streamlit
-    </div>
-    """, unsafe_allow_html=True)
+        if session_data:
+            st.image(session_data["image_pil"], caption=session_data["filename"], width=400)
+            
+            if session_data['analysis']:
+                st.markdown("### Analysis:")
+                st.write(session_data['analysis'])
 
-def render_chat_interface():
-    """Render the chat interface."""
-    st.markdown("### 💬 Chat About Your Dashboard")
-    
-    # Show chat history
-    chat_history = context_manager.get_chat_history()
-    
-    if chat_history:
-        for msg in chat_history:
-            if msg["role"] == "user":
-                st.markdown(f"**You:** {msg['message']}")
-            else:
-                st.markdown(f"**AI:** {msg['message']}")
-            st.markdown("---")
-    else:
-        st.info("Start a conversation about your dashboard!")
-    
-    # Chat input
-    user_input = st.chat_input("Ask about your dashboard...")
-    
-    if user_input:
-        handle_chat_message(user_input)
+                pdf_bytes = generate_pdf_report(session_data['objective'], session_data['analysis'], session_data['filename'])
+                st.download_button(
+                    label="Download PDF Report",
+                    data=pdf_bytes,
+                    file_name=f"{session_data['filename'].split('.')[0]}_report.pdf",
+                    mime="application/pdf"
+                )
+
+            st.info("Start a conversation about your dashboard!")
+
+    if context_manager.has_active_session() or st.session_state.get('comparison_analysis'):
+        for message in context_manager.get_chat_history():
+            with st.chat_message(message["role"]):
+                st.markdown(message["message"])
+
+        user_input = st.chat_input("Ask about your dashboard...")
+        
+        if user_input:
+            handle_chat_message(user_input)
 
 def handle_chat_message(user_message: str):
-    """Handle user chat message and get AI response."""
-    if not context_manager.has_active_session():
-        st.error("No active session found.")
+    if not context_manager.has_active_session() and not st.session_state.get('comparison_analysis'):
+        st.error("No active session found. Please upload a dashboard first.")
         return
     
     try:
-        # Add user message
         context_manager.add_chat_message("user", user_message)
         
-        # Prepare context and get AI response
         with st.spinner("Getting response..."):
-            chat_prompt = context_manager.prepare_chat_context(user_message)
-            session_data = context_manager.get_session_data()
-            model_type = session_data["model_used"]
-            
-            if model_type == "gemini":
+            if st.session_state.get('comparison_analysis'):
+                chat_prompt = f"""
+                    You are an expert at analyzing dashboard comparisons. Here's the context:
+                    
+                    COMPARISON ANALYSIS:
+                    {st.session_state.comparison_analysis}
+                    
+                    USER QUESTION: {user_message}
+                    
+                    Provide a helpful response focused on the comparison.
+                """
                 ai_response = gemini_chat_inference(chat_prompt)
             else:
-                ollama_model_name = os.getenv("OLLAMA_MODEL_NAME", "qwen2.5vl:7b")
-                ai_response = ollama_chat_inference(ollama_model_name, chat_prompt)
+                chat_prompt = context_manager.prepare_chat_context(user_message)
+                session_data = context_manager.get_session_data()
+                model_type = session_data["model_used"]
+                
+                if model_type == "gemini":
+                    ai_response = gemini_chat_inference(chat_prompt)
+                else:
+                    ollama_model_name = os.getenv("OLLAMA_MODEL_NAME", "qwen2.5vl:7b")
+                    ai_response = ollama_chat_inference(ollama_model_name, chat_prompt)
             
             if ai_response:
                 context_manager.add_chat_message("assistant", ai_response)
                 st.rerun()
             else:
-                st.error("Failed to get AI response.")
-                
+                st.error("Failed to get a response from the model.")
     except Exception as e:
-        st.error(f"Chat error: {e}")
+        st.error(f"An error occurred during chat inference: {e}")
 
 if __name__ == "__main__":
     main()

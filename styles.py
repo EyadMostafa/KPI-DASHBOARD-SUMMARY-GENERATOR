@@ -2,7 +2,7 @@ def custom_styles():
     return """
     <style>
     /* Import Google Fonts matching I-Score's modern aesthetic */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
     
     /* I-Score Logo Color Palette - Exact Brand Colors */
     :root {
@@ -237,7 +237,7 @@ def custom_styles():
         font-family: 'Inter', sans-serif !important;
         font-size: 16px !important;
         line-height: 1.6 !important;
-        color: #ffffff !important;
+        color: white !important; /* Set text color to visible */
         transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
         resize: vertical !important;
         padding: 1rem !important;
@@ -253,6 +253,19 @@ def custom_styles():
         font-family: 'Space Grotesk', sans-serif !important;
         font-weight: 600 !important;
         font-size: 1.1rem !important;
+    }
+    
+    /* NEW: Radio button styling to fix color visibility */
+    .stRadio label {
+        color: var(--iscore-dark-charcoal) !important; /* Make radio label visible */
+    }
+    
+    .stRadio [data-testid="stFormSubmitButton"] {
+        color: white !important;
+    }
+    
+    .stRadio p {
+        color: var(--iscore-dark-charcoal) !important; /* Make radio option text visible */
     }
     
     /* Tab navigation with I-Score design language */
@@ -588,5 +601,26 @@ def custom_styles():
         outline: none !important;
         box-shadow: 0 0 0 2px var(--iscore-purple-alpha-20) !important;
     }
+    
+    /* Chat messages and input styling */
+    .stChatInputContainer {
+        border-top: 2px solid var(--iscore-gray-200);
+        padding-top: 1rem;
+    }
+    .stChatMessage {
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        max-width: 80%;
+    }
+    .stChatMessage:nth-child(even) {
+        background: var(--iscore-teal-alpha-05);
+        border-left: 4px solid var(--iscore-teal-primary);
+    }
+    .stChatMessage:nth-child(odd) {
+        background: var(--iscore-purple-alpha-05);
+        border-right: 4px solid var(--iscore-purple-primary);
+        margin-left: auto;
+    }
     </style>
-    """
+    """ 
