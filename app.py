@@ -3,6 +3,8 @@ import os
 from PIL import Image
 from dotenv import load_dotenv
 from llm_service import gemini_inference, ollama_inference, gemini_chat_inference, ollama_chat_inference
+from dashboard_validator import validate_dashboard_image, get_validation_error_message, get_uploader_help_text
+from dashboard_similarity import detect_dashboard_similarity, should_proceed_with_comparison
 from pdf_generator import create_pdf_report
 from styles import custom_styles
 from context_manager import DashboardContextManager
@@ -42,15 +44,27 @@ def main():
         st.header("Analyze a Single Dashboard")
         model_choice = st.radio("Choose the model for analysis", ("Gemini (Online)", "Ollama (Local)"), horizontal=True, key="single_model_choice")
 
-        uploaded_file = st.file_uploader("Upload an Image", type=["png", "jpg", "jpeg"])
+        uploaded_file = st.file_uploader(
+            "Upload a Dashboard Image", 
+            type=["png", "jpg", "jpeg"],
+            help=get_uploader_help_text()
+        )
         objective = st.text_area("Provide a business objective for the analysis", height=100)
         
         
         if st.button("Generate Summary"):
             if uploaded_file and objective:
-                with st.spinner('Analyzing the dashboard...'):
+                with st.spinner('Validating dashboard image...'):
                     image = Image.open(uploaded_file)
                     
+                    # First validate if it's actually a dashboard
+                    is_dashboard = validate_dashboard_image(image, model_choice)
+                    
+                    if not is_dashboard:
+                        st.error(get_validation_error_message())
+                        return
+                
+                with st.spinner('Analyzing the dashboard...'):
                     if model_choice == "Gemini (Online)":
                         analysis_result = gemini_inference(objective, [image])
                         model_used = "gemini"
@@ -71,26 +85,71 @@ def main():
     with tab2:
         st.header("Compare Two Dashboards")
         
+        st.info("""
+        💡 **Smart Comparison Feature**: The system will automatically detect if you upload the same or very similar dashboards 
+        and provide appropriate feedback instead of meaningless comparison results.
+        """)
+        
         comparison_model_choice = st.radio("Choose the model for comparison", ("Gemini (Online)", "Ollama (Local)"), horizontal=True, key="comparison_model_choice")
         
         col1, col2 = st.columns([1, 1])
         
         with col1:
             st.markdown("<h4><i class='bi bi-speedometer'></i> Dashboard 1</h4>", unsafe_allow_html=True)
-            uploaded_file1 = st.file_uploader("Upload Image", type=["png", "jpg", "jpeg"], key="dashboard1_uploader")
+            uploaded_file1 = st.file_uploader(
+                "Upload Dashboard Image", 
+                type=["png", "jpg", "jpeg"], 
+                key="dashboard1_uploader",
+                help=get_uploader_help_text()
+            )
             objective1 = st.text_area("Dashboard 1 Objective", height=100, key="objective1")
             
         with col2:
             st.markdown("<h4><i class='bi bi-speedometer2'></i> Dashboard 2</h4>", unsafe_allow_html=True)
-            uploaded_file2 = st.file_uploader("Upload Image", type=["png", "jpg", "jpeg"], key="dashboard2_uploader")
+            uploaded_file2 = st.file_uploader(
+                "Upload Dashboard Image", 
+                type=["png", "jpg", "jpeg"], 
+                key="dashboard2_uploader",
+                help=get_uploader_help_text()
+            )
             objective2 = st.text_area("Dashboard 2 Objective", height=100, key="objective2")
 
         if uploaded_file1 and objective1 and uploaded_file2 and objective2:
             if st.button("Compare Dashboards"):
-                with st.spinner("Analyzing and Comparing Dashboards..."):
+                with st.spinner("Validating dashboard images..."):
                     image1 = Image.open(uploaded_file1)
                     image2 = Image.open(uploaded_file2)
                     
+                    # Validate both images are dashboards
+                    is_dashboard1 = validate_dashboard_image(image1, comparison_model_choice)
+                    is_dashboard2 = validate_dashboard_image(image2, comparison_model_choice)
+                    
+                    if not is_dashboard1:
+                        st.error(get_validation_error_message("Dashboard 1"))
+                        return
+                    
+                    if not is_dashboard2:
+                        st.error(get_validation_error_message("Dashboard 2"))
+                        return
+                
+                with st.spinner("Checking dashboard similarity..."):
+                    # Check if dashboards are similar/identical
+                    similarity_result = detect_dashboard_similarity(image1, image2, comparison_model_choice)
+                    
+                    # Display similarity analysis
+                    st.info(similarity_result['message'])
+                    
+                    # Check if we should proceed with comparison
+                    if not should_proceed_with_comparison(similarity_result):
+                        st.warning("""
+                        ⚠️ **Comparison Skipped**
+                        
+                        The dashboards are too similar to provide meaningful comparison insights. 
+                        Please upload two different dashboards for a proper comparison analysis.
+                        """)
+                        return
+                
+                with st.spinner("Analyzing and Comparing Dashboards..."):
                     if comparison_model_choice == "Gemini (Online)":
                         analysis1 = gemini_inference(objective1, [image1]) 
                         analysis2 = gemini_inference(objective2, [image2])
